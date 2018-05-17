@@ -30,9 +30,9 @@ stacks:
 * ```rancher-url``` The URL of the destination rancher server (used to verify that the credentials are correct)
 * ```environment``` The destination environment (used to verify that the credentials are correct)
 * ```stacks``` A list of stacks to deploy
-* ```stacks/name``` The name of the stack
-* ```stacks/compose``` A path to a directory where a docker-compose.yml and optionally a rancher-compose.yml are located
-* ```stacks/vars``` An optional dictionary of vars that are used to substutude $VAR or ${VAR} placeholders in docker-compose.yml as well as .Values.VAR in conditionals
+  * ```name``` The name of the stack
+  * ```compose``` A path to a directory where a docker-compose.yml and optionally a rancher-compose.yml are located
+  * ```vars``` An optional dictionary of vars that are used to substutude $VAR or ${VAR} placeholders in docker-compose.yml as well as .Values.VAR in conditionals
 
 
 ## planned features
