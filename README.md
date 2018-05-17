@@ -41,3 +41,4 @@ stacks:
 * Command line option to force deployment, even if there are no changes
 * Automatically download compose files from GIT or HTTP(S)
 * (maybe) Command line option to force deployment of services if there's a new docker image version under the same tag
+* Per-service batch size in config file
