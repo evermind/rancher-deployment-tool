@@ -40,7 +40,7 @@ def parse_stacks_config(file,stacks_config):
 		log.debug('Adding stack config "%s"',stack_name)
 		compose=get_config_value(file,config,'compose',str,'stack[%s]/'%stack_name)
 		vars=get_config_value(file,config,'vars',dict,'stack[%s]/'%stack_name,{})
-		docker_compose_file=path.join(path.dirname(file),compose,'docker-compose.yml')
+		docker_compose_file=path.normpath(path.join(path.dirname(file),compose,'docker-compose.yml'))
 		if path.isfile(docker_compose_file):
 			log.debug('  using %s',docker_compose_file)
 			with open(docker_compose_file,'r') as f:
@@ -52,7 +52,7 @@ def parse_stacks_config(file,stacks_config):
 		else:
 			log.critical('  File not found: %s',docker_compose_file)
 			exit(1)
-		rancher_compose_file=path.join(path.dirname(file),compose,'rancher-compose.yml')
+		rancher_compose_file=path.normpath(path.join(path.dirname(file),compose,'rancher-compose.yml'))
 		if path.isfile(rancher_compose_file):
 			log.debug('  using %s',rancher_compose_file)
 		else:
@@ -85,7 +85,7 @@ def read_config(file):
 
 def find_rancher_cli():
 	for dir in [path.dirname(__file__)]+environ['PATH'].split(pathsep):
-		cli=path.join(dir,'rancher')
+		cli=path.normpath(path.join(dir,'rancher'))
 		if path.isfile(cli):
 			return cli
 
