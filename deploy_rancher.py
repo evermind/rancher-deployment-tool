@@ -127,7 +127,7 @@ def deploy_stack(cli,config,stack):
 		]
 
 	if stack['rancher_compose_file']:
-		command.append('--rancher-file',stack['rancher_compose_file'])
+		command+=['--rancher-file',stack['rancher_compose_file']]
 
 	subprocess.check_call(command,env=proc_env)
 
