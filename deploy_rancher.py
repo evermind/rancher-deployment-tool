@@ -28,8 +28,9 @@ def get_config_value(file,config,name,required_type,prefix='',default=none_objec
 
 def scan_vars(text):
 	return set(
-		re.findall('[^\$]\${(.+?)}', text) +
-		re.findall('[^\$]\$([a-zA-Z0-9_]+)', text)
+		re.findall('[^\$]\${(.+?)}', text) + # find $VAR
+		re.findall('[^\$]\$([a-zA-Z0-9_]+)', text) + # find ${VAR}
+		re.findall('{{-.*?\s+\.Values\.([a-zA-Z0-9_]+)\s+.*?}}', text) # find .Values.VAR in conditionals
 		)
 
 def parse_stacks_config(file,stacks_config):
@@ -44,8 +45,9 @@ def parse_stacks_config(file,stacks_config):
 			log.debug('  using %s',docker_compose_file)
 			with open(docker_compose_file,'r') as f:
 				docker_compose_raw=f.read();
-			docker_compose=yaml.load(docker_compose_raw)
 			required_vars=scan_vars(docker_compose_raw)
+			# remove all conditionals prior to parse the yaml
+			docker_compose=yaml.safe_load(re.sub('{{-.*?}}','',docker_compose_raw))
 			services=list(get_config_value(docker_compose_file,docker_compose,'services',dict).keys())
 		else:
 			log.critical('  File not found: %s',docker_compose_file)
@@ -102,7 +104,6 @@ def check_rancher_connection(cli,config):
 	if not config['environment'] in envs:
 		log.critical('Environment "%s" not found with the current cli config at %s - available environments: %s',config['environment'],config['rancher-url'],envs)
 		exit(1)
-	print envs
 
 	log.info("Deploying to %s on %s",config['environment'],config['rancher-url'])
 
@@ -111,7 +112,7 @@ def deploy_stack(cli,config,stack):
 
 	proc_env=dict(environ.copy())
 	proc_env.update(stack['vars'])
-	subprocess.check_call([
+	command=[
 		cli,
 		'--env',config['environment'],
 		'up',
@@ -120,11 +121,15 @@ def deploy_stack(cli,config,stack):
 		'--upgrade',
 		'--confirm-upgrade',
 		'--batch-size','1',
-		'--rancher-file',stack['rancher_compose_file'],
 		'--file',stack['docker_compose_file'],
 		'--stack',stack['name'],
 		'-d'
-		],env=proc_env)
+		]
+
+	if stack['rancher_compose_file']:
+		command.append('--rancher-file',stack['rancher_compose_file'])
+
+	subprocess.check_call(command,env=proc_env)
 
 
 def main():
