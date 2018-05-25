@@ -107,8 +107,11 @@ def check_rancher_connection(cli,config):
 
 	log.info("Deploying to %s on %s",config['environment'],config['rancher-url'])
 
-def deploy_stack(cli,config,stack):
-	log.info('Deploying stack %s',stack['name'])
+def deploy_stack(args,cli,config,stack):
+	if args.force:
+		log.info('Deploying stack %s (force update)',stack['name'])
+	else:
+		log.info('Deploying stack %s',stack['name'])
 
 	proc_env=dict(environ.copy())
 	proc_env.update(stack['vars'])
@@ -129,6 +132,9 @@ def deploy_stack(cli,config,stack):
 	if stack['rancher_compose_file']:
 		command+=['--rancher-file',stack['rancher_compose_file']]
 
+	if args.force:
+		command+=['--force-upgrade']
+
 	subprocess.check_call(command,env=proc_env)
 
 
@@ -136,6 +142,7 @@ def main():
 	coloredlogs.install(level='DEBUG',fmt="%(asctime)s %(levelname)8s %(message)s")
 	parser = argparse.ArgumentParser(description='Rancher deployment tool',formatter_class=argparse.RawTextHelpFormatter)
 	parser.add_argument('configfile',metavar='config.yml',help='The deployment config file')
+	parser.add_argument('--force','-f',help='Force the deployment, even if there are no changes on the stack definition',action='store_true')
 #	parser.add_argument('-l',dest='limit',metavar='stack/service',nargs='*',help=('Limit the execution to the given stacks and/or services. Examples:\n'
 #		'  name          - limit to the stack or service with that name\n'
 #		'                  (fails if the names exists as both, stack and service)\n'
@@ -148,7 +155,7 @@ def main():
 	config=read_config(args.configfile)
 	check_rancher_connection(cli,config)
 	for stack in config['stacks']:
-		deploy_stack(cli,config,stack)
+		deploy_stack(args,cli,config,stack)
 
 
 

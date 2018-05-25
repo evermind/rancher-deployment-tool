@@ -7,6 +7,7 @@ This wrapper for the rancher cli allows to store environment specific stack conf
 * check that current credentials point to the correct rancher url and environment
 * define a list of stacks to deploy plus dynamic variables per stack
 * verify that all variables used in docker-compose.yml are defined
+* Command line option to force deployment, even if there are no changes (-f or --force)
 
 ## usage
 
@@ -38,7 +39,6 @@ stacks:
 ## planned features
 
 * Command line option to limit deployment to certain stacks and/or services
-* Command line option to force deployment, even if there are no changes
 * Automatically download compose files from GIT or HTTP(S)
 * (maybe) Command line option to force deployment of services if there's a new docker image version under the same tag
 * Per-service batch size in config file
