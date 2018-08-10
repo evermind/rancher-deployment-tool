@@ -1,17 +1,39 @@
 #!/usr/bin/env python
 
 import logging as log
-import coloredlogs
 import argparse
 import yaml
 import re
 from sys import exit
-from os import path,pathsep,environ
+from os import path,pathsep,environ,remove as delete_file
 import json
 import subprocess
+import tempfile
+
+delete_after_run=[]
 
 def none_object():
 	pass
+
+def get_as_file(basefile,location,filename):
+	if (location.startswith('http://') or location.startswith('https://')):
+		import requests
+		if not location.endswith('/'):
+			location+='/'
+		location+=filename;
+		r = requests.get(location)
+		if r.status_code<200 or r.status_code>299:
+			return (None,location)
+		tmp=tempfile.NamedTemporaryFile(suffix=filename,delete=False)
+		delete_after_run.append(tmp.name)
+		tmp.write(r.text.encode())
+		return (tmp.name,location)
+
+	file=path.normpath(path.join(path.dirname(basefile),location,filename))
+	if (path.exists(file)):
+		return (file,file)
+	return (None,file)
+
 
 def get_config_value(file,config,name,required_type,prefix='',default=none_object):
 	if name in config:
@@ -40,23 +62,21 @@ def parse_stacks_config(file,stacks_config):
 		log.debug('Adding stack config "%s"',stack_name)
 		compose=get_config_value(file,config,'compose',str,'stack[%s]/'%stack_name)
 		vars=get_config_value(file,config,'vars',dict,'stack[%s]/'%stack_name,{})
-		docker_compose_file=path.normpath(path.join(path.dirname(file),compose,'docker-compose.yml'))
-		if path.isfile(docker_compose_file):
-			log.debug('  using %s',docker_compose_file)
+		(docker_compose_file,docker_compose_location)=get_as_file(file,compose,'docker-compose.yml')
+		if docker_compose_file:
+			log.debug('  using %s',docker_compose_location)
 			with open(docker_compose_file,'r') as f:
 				docker_compose_raw=f.read();
 			required_vars=scan_vars(docker_compose_raw)
 			# remove all conditionals prior to parse the yaml
 			docker_compose=yaml.safe_load(re.sub('{{-.*?}}','',docker_compose_raw))
-			services=list(get_config_value(docker_compose_file,docker_compose,'services',dict).keys())
+			services=list(get_config_value(docker_compose_location,docker_compose,'services',dict).keys())
 		else:
-			log.critical('  File not found: %s',docker_compose_file)
+			log.critical('  File not found: %s',docker_compose_location)
 			exit(1)
-		rancher_compose_file=path.normpath(path.join(path.dirname(file),compose,'rancher-compose.yml'))
-		if path.isfile(rancher_compose_file):
-			log.debug('  using %s',rancher_compose_file)
-		else:
-			rancher_compose_file=None
+		(rancher_compose_file,rancher_compose_location)=get_as_file(file,compose,'rancher-compose.yml')
+		if rancher_compose_file:
+			log.debug('  using %s',rancher_compose_location)
 		all_vars_found=True
 		for var in required_vars:
 			if not var in vars:
@@ -138,10 +158,10 @@ def deploy_stack(args,cli,config,stack):
 	subprocess.check_call(command,env=proc_env)
 
 
-def main():
-	coloredlogs.install(level='DEBUG',fmt="%(asctime)s %(levelname)8s %(message)s")
+def run():
 	parser = argparse.ArgumentParser(description='Rancher deployment tool',formatter_class=argparse.RawTextHelpFormatter)
 	parser.add_argument('configfile',metavar='config.yml',help='The deployment config file')
+	parser.add_argument('--debug','-d',action='store_true')
 	parser.add_argument('--force','-f',help='Force the deployment, even if there are no changes on the stack definition',action='store_true')
 #	parser.add_argument('-l',dest='limit',metavar='stack/service',nargs='*',help=('Limit the execution to the given stacks and/or services. Examples:\n'
 #		'  name          - limit to the stack or service with that name\n'
@@ -151,12 +171,32 @@ def main():
 #		'  stack/*       - deploy all services on a particular stack with that name\n'
 #		))
 	args = parser.parse_args()
+
+	loglevel=log.DEBUG if args.debug else log.INFO
+	try:
+		import coloredlogs
+		coloredlogs.install(level=loglevel,fmt="%(asctime)s %(levelname)8s %(message)s")
+	except ModuleNotFoundError:
+		log.basicConfig(format="%(asctime)s %(levelname)8s %(message)s", level=loglevel)
+		log.debug("Install coloredlogs module for colored logs.")
+		pass
+
 	cli=find_rancher_cli()
 	config=read_config(args.configfile)
 	check_rancher_connection(cli,config)
 	for stack in config['stacks']:
 		deploy_stack(args,cli,config,stack)
 
+def cleanup():
+	for f in delete_after_run:
+		delete_file(f)
+
+
+def main():
+	try:
+		run()
+	finally: 
+		cleanup()
 
 
 if __name__ == "__main__":
