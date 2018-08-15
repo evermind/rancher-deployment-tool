@@ -62,6 +62,10 @@ def parse_stacks_config(file,stacks_config):
 		log.debug('Adding stack config "%s"',stack_name)
 		compose=get_config_value(file,config,'compose',str,'stack[%s]/'%stack_name)
 		vars=get_config_value(file,config,'vars',dict,'stack[%s]/'%stack_name,{})
+		for (k,v) in vars.items():
+			v=str(v)
+			vars[k]=v
+			log.debug("var %s = %s"%(k,v))
 		(docker_compose_file,docker_compose_location)=get_as_file(file,compose,'docker-compose.yml')
 		if docker_compose_file:
 			log.debug('  using %s',docker_compose_location)
@@ -120,7 +124,7 @@ def check_rancher_connection(cli,config):
 	if not rancher_url.startswith(config['rancher-url']):
 		log.critical('Expected a rancher cli config that connects to %s but got: %s',config['rancher-url'],rancher_url)
 		exit(1)
-	envs=subprocess.check_output([cli,'env','ls','--format','{{.Environment.Name}}']).split()
+	envs=subprocess.check_output([cli,'env','ls','--format','{{.Environment.Name}}']).decode().split()
 	if not config['environment'] in envs:
 		log.critical('Environment "%s" not found with the current cli config at %s - available environments: %s',config['environment'],config['rancher-url'],envs)
 		exit(1)
